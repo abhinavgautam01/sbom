@@ -26,7 +26,7 @@ func TestDetect(t *testing.T) {
 		{"github envelope", `{"sbom":{"spdxVersion":"SPDX-2.3"}}`, TypeSPDX},
 		{"intoto envelope", `{"predicateType":"https://spdx.dev/Document","predicate":{}}`, TypeSPDX},
 		{"unknown json", `{"foo":1}`, TypeUnknown},
-		{"not json", `<bom/>`, TypeUnknown},
+		{"bare xml bom", `<bom/>`, TypeCycloneDX},
 		{"empty", ``, TypeUnknown},
 		{"whitespace", "  \n\t", TypeUnknown},
 	}
@@ -121,10 +121,10 @@ func TestParseSPDXEnvelope(t *testing.T) {
 }
 
 func TestPackageDedup(t *testing.T) {
-	s := newSBOM(TypeCycloneDX)
-	s.addPackage(Package{Name: "a", Version: "1"})
-	s.addPackage(Package{Name: "a", Version: "1", Description: "second"})
-	s.addPackage(Package{Name: "a", Version: "2"})
+	s := New(TypeCycloneDX)
+	s.AddPackage(Package{Name: "a", Version: "1"})
+	s.AddPackage(Package{Name: "a", Version: "1", Description: "second"})
+	s.AddPackage(Package{Name: "a", Version: "2"})
 	if len(s.Packages) != 2 {
 		t.Fatalf("Packages = %d, want 2", len(s.Packages))
 	}

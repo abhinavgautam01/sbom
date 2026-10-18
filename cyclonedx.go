@@ -34,10 +34,11 @@ type cdxBOMXML struct {
 }
 
 type cdxMetadataXML struct {
-	Timestamp string           `xml:"timestamp,omitempty"`
-	Tools     *cdxToolsXML     `xml:"tools,omitempty"`
-	Component *cdxComponentXML `xml:"component,omitempty"`
-	Supplier  *cdxOrgEntity    `xml:"supplier,omitempty"`
+	Timestamp   string           `xml:"timestamp,omitempty"`
+	Tools       *cdxToolsXML     `xml:"tools,omitempty"`
+	Component   *cdxComponentXML `xml:"component,omitempty"`
+	Supplier    *cdxOrgEntity    `xml:"supplier,omitempty"`
+	Manufacture *cdxOrgEntity    `xml:"manufacture,omitempty"`
 }
 
 type cdxToolsXML struct {
@@ -245,10 +246,13 @@ func parseCycloneDX(data []byte) (*SBOM, error) {
 	if err := json.Unmarshal(data, &bom); err != nil {
 		return nil, wrapErr("cyclonedx json", err)
 	}
-	if bom.BOMFormat != cdxBOMFormat {
+	if bom.BOMFormat != cdxBOMFormat && (bom.BOMFormat != "" || bom.Components == nil) {
 		return nil, ErrUnrecognized
 	}
+	return normalizeCycloneDX(&bom), nil
+}
 
+func normalizeCycloneDX(bom *cdxBOM) *SBOM {
 	packageCount := len(bom.Components)
 	nestedRelationshipCount := 0
 	for i := range bom.Components {
@@ -298,7 +302,7 @@ func parseCycloneDX(data []byte) (*SBOM, error) {
 		}
 	}
 
-	return s, nil
+	return s
 }
 
 func cdxComponentStats(components []cdxComponent) (packages, relationships int) {
