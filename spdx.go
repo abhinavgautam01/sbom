@@ -86,7 +86,10 @@ func parseSPDX(data []byte, envelope bool) (*SBOM, error) {
 	if doc.SPDXVersion == "" && doc.SPDXID == "" {
 		return nil, ErrUnrecognized
 	}
+	return normalizeSPDX(&doc), nil
+}
 
+func normalizeSPDX(doc *spdxDoc) *SBOM {
 	s := newSizedSBOM(TypeSPDX, len(doc.Packages), len(doc.Relationships))
 	s.SpecVersion = doc.SPDXVersion
 	s.Document = Document{
@@ -154,7 +157,7 @@ func parseSPDX(data []byte, envelope bool) (*SBOM, error) {
 		})
 	}
 
-	return s, nil
+	return s
 }
 
 func applySPDXCreationInfo(s *SBOM, creationInfo *spdxCreationInfo) {

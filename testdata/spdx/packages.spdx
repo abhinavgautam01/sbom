@@ -1,0 +1,57 @@
+# SPDX package inventory
+SPDXVersion: SPDX-2.3
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: example
+DocumentNamespace: https://example.com/sbom/example
+Creator: Organization: Acme
+Creator: Tool: example-generator
+Created: 2026-01-01T00:00:00Z
+DocumentComment: <text>A document comment.
+PackageName: this is text, not a package
+</text>
+
+PackageName: shared
+SPDXID: SPDXRef-alpha
+PackageVersion: 1.0.0
+PackageFileName: alpha.tgz
+PackageSupplier: Organization: Acme
+PackageOriginator: Person: Jane Doe
+PackageDownloadLocation: https://example.com/alpha.tgz
+FilesAnalyzed: false
+PackageChecksum: SHA256: abc
+PackageHomePage: https://example.com
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: <text>Copyright Acme</text>
+PackageDescription: <text>Shared & useful
+# This is part of the description.
+  Indented text.</text>
+PrimaryPackagePurpose: LIBRARY
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/%40alpha/shared@1.0.0
+ExternalRef: PACKAGE-MANAGER purl pkg:generic/alpha@1.0.0
+ExternalRef: SECURITY cpe23Type cpe:2.3:a:acme:shared:1.0.0
+
+FileName: ./README.md
+SPDXID: SPDXRef-file
+FileCopyrightText: <text>Copyright File Author</text>
+SnippetSPDXID: SPDXRef-snippet
+SnippetFromFileSPDXID: SPDXRef-file
+SnippetByteRange: 1:20
+
+PackageName: shared
+SPDXID: SPDXRef-beta
+PackageVersion: 1.0.0
+PackageDownloadLocation: NOASSERTION
+FilesAnalyzed: false
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/%40beta/shared@1.0.0
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-alpha
+Relationship: SPDXRef-alpha DEPENDS_ON SPDXRef-beta
+LicenseID: LicenseRef-example
+ExtractedText: <text>PackageName: not a package</text>
+Annotator: Person: Jane Doe
+AnnotationDate: 2026-01-01T00:00:00Z
+AnnotationType: REVIEW
+SPDXREF: SPDXRef-beta
+AnnotationComment: <text>Reviewed</text>

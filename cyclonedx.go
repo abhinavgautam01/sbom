@@ -245,10 +245,13 @@ func parseCycloneDX(data []byte) (*SBOM, error) {
 	if err := json.Unmarshal(data, &bom); err != nil {
 		return nil, wrapErr("cyclonedx json", err)
 	}
-	if bom.BOMFormat != cdxBOMFormat {
+	if bom.BOMFormat != cdxBOMFormat && (bom.BOMFormat != "" || bom.Components == nil) {
 		return nil, ErrUnrecognized
 	}
+	return normalizeCycloneDX(&bom), nil
+}
 
+func normalizeCycloneDX(bom *cdxBOM) *SBOM {
 	packageCount := len(bom.Components)
 	nestedRelationshipCount := 0
 	for i := range bom.Components {
@@ -298,7 +301,7 @@ func parseCycloneDX(data []byte) (*SBOM, error) {
 		}
 	}
 
-	return s, nil
+	return s
 }
 
 func cdxComponentStats(components []cdxComponent) (packages, relationships int) {

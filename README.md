@@ -1,6 +1,6 @@
 # sbom
 
-Go library for reading and writing Software Bill of Materials documents. Reads CycloneDX and SPDX JSON into a single `Document` / `Package` / `Relationship` model, and writes that model back out as CycloneDX (JSON or XML) or SPDX JSON.
+Go library for reading and writing Software Bill of Materials documents. Reads CycloneDX JSON/XML and SPDX JSON/tag-value into a single `Document` / `Package` / `Relationship` model, and writes that model back out as CycloneDX (JSON or XML) or SPDX JSON.
 
 Ported from [github.com/andrew/sbom](https://github.com/andrew/sbom).
 
@@ -30,7 +30,9 @@ for _, p := range doc.Packages {
 }
 ```
 
-`Parse` auto-detects the format. `Detect` returns just the type without a full parse and runs in roughly constant time regardless of document size, since it only token-scans top-level keys until it hits a discriminator.
+`Parse` auto-detects the format. `Detect` returns just the type without a full parse, scanning JSON keys, the XML root, or the tag-value document header.
+
+Packages with different document IDs or PURLs remain separate, even when their names and versions match. `AddPackage` replaces an entry only when its name, version, document ID, and set of PURLs match. `Package.PURL()` returns the first PURL; `Package.ExternalRefs` retains all declared references.
 
 ```go
 switch sbom.Detect(data) {
@@ -94,10 +96,11 @@ for _, p := range doc.Packages {
 | Format | Parse | Encode | Notes |
 | --- | --- | --- | --- |
 | CycloneDX JSON | yes | yes | nested components flattened, `license.id` / `license.name` / `expression` all read |
-| CycloneDX XML | no | yes | |
+| CycloneDX XML | yes | yes | nested components, dependency references, and package metadata |
 | SPDX JSON | yes | yes | `{"sbom": ...}` and in-toto `{"predicate": ...}` envelopes unwrapped on parse |
+| SPDX tag-value | yes | no | document and package fields, external references, relationships, and multiline text |
 
-XML/YAML/tag-value parsing is not handled yet.
+SPDX file, snippet, annotation, and extracted-license records are not included in the parsed model. YAML parsing is not supported.
 
 ## Why not protobom?
 

@@ -1,5 +1,5 @@
 // Package sbom parses Software Bill of Materials documents into a unified
-// data model. It reads CycloneDX and SPDX (JSON serialisations) and
+// data model. It reads CycloneDX JSON/XML and SPDX JSON/tag-value and
 // normalises both into the same Document/Package/Relationship shape so
 // callers don't need to care which format they were handed.
 //
@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -180,23 +181,23 @@ type SBOM struct {
 	Packages      []Package
 	Relationships []Relationship
 
-	// pkgIndex keys packages by (name, version) so duplicates collapse the
-	// same way the Ruby implementation's @packages[[name, version]] does.
-	pkgIndex map[[2]string]int
+	pkgIndex map[packageKey]int
+}
+
+type packageKey struct {
+	name, version, id, purls string
 }
 
 // New returns an empty SBOM ready for AddPackage calls. Use this when
 // building a document for Encode rather than parsing one.
 func New(t Type) *SBOM {
-	return &SBOM{Type: t, pkgIndex: map[[2]string]int{}}
+	return &SBOM{Type: t, pkgIndex: map[packageKey]int{}}
 }
-
-func newSBOM(t Type) *SBOM { return New(t) }
 
 func newSizedSBOM(t Type, packages, relationships int) *SBOM {
 	s := &SBOM{
 		Type:     t,
-		pkgIndex: make(map[[2]string]int, packages),
+		pkgIndex: make(map[packageKey]int, packages),
 	}
 	if packages > 0 {
 		s.Packages = make([]Package, 0, packages)
@@ -208,7 +209,7 @@ func newSizedSBOM(t Type, packages, relationships int) *SBOM {
 }
 
 // AddPackage appends p, replacing any existing package with the same
-// (Name, Version) pair.
+// name, version, document ID, and set of PURLs.
 func (s *SBOM) AddPackage(p Package) { s.addPackage(p) }
 
 // FilterProperties walks every package and removes properties whose
@@ -290,9 +291,9 @@ func (s *SBOM) ClassifyScope() map[string]string {
 
 func (s *SBOM) addPackage(p Package) {
 	if s.pkgIndex == nil {
-		s.pkgIndex = map[[2]string]int{}
+		s.pkgIndex = map[packageKey]int{}
 	}
-	key := [2]string{p.Name, p.Version}
+	key := packageKey{p.Name, p.Version, p.ID, packagePURLKey(p.ExternalRefs)}
 	if i, ok := s.pkgIndex[key]; ok {
 		s.Packages[i] = p
 		return
@@ -301,10 +302,27 @@ func (s *SBOM) addPackage(p Package) {
 	s.Packages = append(s.Packages, p)
 }
 
-// Parse sniffs the SBOM format from content and parses it. Only JSON
-// serialisations are supported.
+func packagePURLKey(refs []ExternalRef) string {
+	var purls []string
+	for _, ref := range refs {
+		if ref.Type == purlExternalReferenceType && ref.Locator != "" {
+			purls = append(purls, ref.Locator)
+		}
+	}
+	slices.Sort(purls)
+	return strings.Join(slices.Compact(purls), "\x00")
+}
+
+// Parse reads CycloneDX JSON/XML or SPDX JSON/tag-value, detecting the format.
 func Parse(data []byte) (*SBOM, error) {
+	data = trimDocument(data)
 	detected := detect(data)
+	if detected.xml {
+		return parseCycloneDXXML(data)
+	}
+	if detected.tagValue {
+		return parseSPDXTagValue(data)
+	}
 	switch detected.typ {
 	case TypeCycloneDX:
 		return parseCycloneDX(data)
@@ -324,9 +342,7 @@ func Parse(data []byte) (*SBOM, error) {
 // Detect inspects content and returns the SBOM Type without fully parsing
 // it. Returns TypeUnknown if the format can't be determined.
 //
-// Only the top-level object keys are scanned; nested arrays and objects are
-// skipped without allocation so detection cost is independent of document
-// size once a discriminator is found.
+// It scans JSON keys, the XML root, or the tag-value document header.
 func Detect(data []byte) Type {
 	return detect(data).typ
 }
@@ -334,12 +350,24 @@ func Detect(data []byte) Type {
 type detectedFormat struct {
 	typ          Type
 	spdxEnvelope bool
+	xml          bool
+	tagValue     bool
+}
+
+func trimDocument(data []byte) []byte {
+	return bytes.TrimSpace(bytes.TrimPrefix(bytes.TrimSpace(data), []byte("\xef\xbb\xbf")))
 }
 
 func detect(data []byte) detectedFormat {
-	data = bytes.TrimSpace(data)
-	if len(data) == 0 || data[0] != '{' {
+	data = trimDocument(data)
+	if len(data) == 0 {
 		return detectedFormat{}
+	}
+	if data[0] == '<' {
+		return detectCycloneDXXML(data)
+	}
+	if data[0] != '{' {
+		return detectSPDXTagValue(data)
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	if _, err := dec.Token(); err != nil { // opening '{'
