@@ -65,7 +65,7 @@ func parseCycloneDXXML(data []byte) (*SBOM, error) {
 	}
 	if input.Metadata != nil {
 		m := input.Metadata
-		bom.Metadata = &cdxMetadata{Timestamp: m.Timestamp, Supplier: m.Supplier}
+		bom.Metadata = &cdxMetadata{Timestamp: m.Timestamp, Supplier: m.Supplier, Manufacture: m.Manufacture}
 		if m.Component != nil {
 			component := componentFromXML(m.Component)
 			bom.Metadata.Component = &component

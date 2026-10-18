@@ -246,3 +246,14 @@ func TestParsePrefixedCycloneDXXML(t *testing.T) {
 		t.Fatalf("prefixed document = %+v", doc)
 	}
 }
+
+func TestParseCycloneDXXMLManufacture(t *testing.T) {
+	data := `<bom xmlns="http://cyclonedx.org/schema/bom/1.5"><metadata><manufacture><name>Acme</name></manufacture></metadata></bom>`
+	doc, err := Parse([]byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Document.Supplier != "Acme" {
+		t.Fatalf("supplier = %q, want manufacture name", doc.Document.Supplier)
+	}
+}

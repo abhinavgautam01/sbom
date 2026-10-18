@@ -34,10 +34,11 @@ type cdxBOMXML struct {
 }
 
 type cdxMetadataXML struct {
-	Timestamp string           `xml:"timestamp,omitempty"`
-	Tools     *cdxToolsXML     `xml:"tools,omitempty"`
-	Component *cdxComponentXML `xml:"component,omitempty"`
-	Supplier  *cdxOrgEntity    `xml:"supplier,omitempty"`
+	Timestamp   string           `xml:"timestamp,omitempty"`
+	Tools       *cdxToolsXML     `xml:"tools,omitempty"`
+	Component   *cdxComponentXML `xml:"component,omitempty"`
+	Supplier    *cdxOrgEntity    `xml:"supplier,omitempty"`
+	Manufacture *cdxOrgEntity    `xml:"manufacture,omitempty"`
 }
 
 type cdxToolsXML struct {
