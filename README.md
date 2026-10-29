@@ -91,6 +91,20 @@ for _, p := range doc.Packages {
 
 `ClassifyScope` returns `nil` when the document has no dependency graph at all, so callers can hide a scope filter rather than showing every package as unclassified.
 
+## Ancestors
+
+`Package.Ancestors` records the components a package was derived from, such as the upstream project of a fork. CycloneDX JSON and XML read and write these as `pedigree.ancestors`:
+
+```go
+s.AddPackage(sbom.Package{
+    Name: "@plotly/d3", Version: "3.8.2",
+    ExternalRefs: []sbom.ExternalRef{{Type: "purl", Locator: "pkg:npm/%40plotly/d3@3.8.2"}},
+    Ancestors: []sbom.Ancestor{{Name: "d3/d3", PURL: "pkg:github/d3/d3"}},
+})
+```
+
+Leave `Version` empty when only the upstream repository is known. Ancestors are provenance, not installed packages: they never appear in `Packages` or create relationships. They are written without a `bom-ref`. SPDX output does not include them.
+
 ## Supported formats
 
 | Format | Parse | Encode | Notes |

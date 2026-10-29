@@ -128,6 +128,9 @@ func componentFromXML(input *cdxComponentXML) cdxComponent {
 	if input.Properties != nil {
 		c.Properties = input.Properties.Properties
 	}
+	if input.Pedigree != nil && input.Pedigree.Ancestors != nil {
+		c.Pedigree = &cdxPedigree{Ancestors: componentsFromXML(input.Pedigree.Ancestors)}
+	}
 	if input.Licenses != nil {
 		for _, license := range input.Licenses.Licenses {
 			c.Licenses = append(c.Licenses, cdxLicense{License: &cdxLicenseID{ID: license.ID, Name: license.Name}})

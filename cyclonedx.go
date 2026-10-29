@@ -65,9 +65,14 @@ type cdxComponentXML struct {
 	Supplier           *cdxOrgEntity             `xml:"supplier,omitempty"`
 	Hashes             *cdxHashesXML             `xml:"hashes,omitempty"`
 	Licenses           *cdxLicensesXML           `xml:"licenses,omitempty"`
+	Pedigree           *cdxPedigreeXML           `xml:"pedigree,omitempty"`
 	ExternalReferences *cdxExternalReferencesXML `xml:"externalReferences,omitempty"`
 	Properties         *cdxPropertiesXML         `xml:"properties,omitempty"`
 	Components         *cdxComponentsXML         `xml:"components,omitempty"`
+}
+
+type cdxPedigreeXML struct {
+	Ancestors *cdxComponentsXML `xml:"ancestors,omitempty"`
 }
 
 type cdxHashesXML struct {
@@ -139,6 +144,9 @@ func cdxComponentToXML(component *cdxComponent) cdxComponentXML {
 	if len(component.Licenses) > 0 {
 		result.Licenses = licensesToXML(component.Licenses)
 	}
+	if component.Pedigree != nil && len(component.Pedigree.Ancestors) > 0 {
+		result.Pedigree = &cdxPedigreeXML{Ancestors: componentsToXML(component.Pedigree.Ancestors)}
+	}
 	if len(component.ExternalReferences) > 0 {
 		result.ExternalReferences = &cdxExternalReferencesXML{References: component.ExternalReferences}
 	}
@@ -201,9 +209,14 @@ type cdxComponent struct {
 	Supplier           *cdxOrgEntity  `json:"supplier,omitempty"`
 	Hashes             []cdxHash      `json:"hashes,omitempty"`
 	Licenses           []cdxLicense   `json:"licenses,omitempty"`
+	Pedigree           *cdxPedigree   `json:"pedigree,omitempty"`
 	ExternalReferences []cdxExtRef    `json:"externalReferences,omitempty"`
 	Properties         []cdxProperty  `json:"properties,omitempty"`
 	Components         []cdxComponent `json:"components,omitempty"`
+}
+
+type cdxPedigree struct {
+	Ancestors []cdxComponent `json:"ancestors,omitempty"`
 }
 
 type cdxHash struct {
@@ -395,7 +408,22 @@ func cdxPackage(c *cdxComponent) Package {
 			p.Properties[i] = Property(c.Properties[i])
 		}
 	}
+	p.Ancestors = cdxAncestors(c.Pedigree)
 	return p
+}
+
+func cdxAncestors(pedigree *cdxPedigree) []Ancestor {
+	if pedigree == nil || len(pedigree.Ancestors) == 0 {
+		return nil
+	}
+	ancestors := make([]Ancestor, len(pedigree.Ancestors))
+	for i := range pedigree.Ancestors {
+		a := &pedigree.Ancestors[i]
+		ancestors[i] = Ancestor{
+			Type: normalizePackageType(a.Type), Name: a.Name, Version: a.Version, PURL: a.PURL,
+		}
+	}
+	return ancestors
 }
 
 func normalizeChecksumAlgorithm(algorithm string) string {
