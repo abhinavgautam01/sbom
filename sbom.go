@@ -123,6 +123,19 @@ type Package struct {
 	Checksums        []Checksum
 	ExternalRefs     []ExternalRef
 	Properties       []Property
+	Ancestors        []Ancestor
+}
+
+// Ancestor is a component a package was derived from, such as the upstream
+// project of a fork (CycloneDX pedigree.ancestors). Ancestors describe
+// provenance only: they are not installed packages and never produce
+// relationships. Version is optional because an ancestor may be known only
+// as a repository. CycloneDX requires Name; Type defaults to library.
+type Ancestor struct {
+	Type    string
+	Name    string
+	Version string
+	PURL    string
 }
 
 // PURL returns the Package URL for this package, if one was declared. In

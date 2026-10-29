@@ -106,7 +106,24 @@ func packageToCDX(p *Package) cdxComponent {
 			c.Properties[i] = cdxProperty(p.Properties[i])
 		}
 	}
+	c.Pedigree = ancestorsToCDX(p.Ancestors)
 	return c
+}
+
+// ancestorsToCDX emits ancestors without bom-refs so they cannot collide with
+// installed components or be targeted by dependency entries.
+func ancestorsToCDX(ancestors []Ancestor) *cdxPedigree {
+	if len(ancestors) == 0 {
+		return nil
+	}
+	pedigree := &cdxPedigree{Ancestors: make([]cdxComponent, len(ancestors))}
+	for i := range ancestors {
+		a := &ancestors[i]
+		pedigree.Ancestors[i] = cdxComponent{
+			Type: cdxPackageType(a.Type), Name: a.Name, Version: a.Version, PURL: a.PURL,
+		}
+	}
+	return pedigree
 }
 
 func cdxPackageType(packageType string) string {
