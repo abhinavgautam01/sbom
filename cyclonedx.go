@@ -54,8 +54,7 @@ type cdxDependenciesXML struct {
 	Dependencies []cdxDependency `xml:"dependency"`
 }
 
-// Element order follows the CycloneDX XSD component sequence, which the
-// encoder must preserve. Decoding does not depend on element order.
+// Element order follows the CycloneDX XSD component sequence.
 type cdxComponentXML struct {
 	BOMRef             string                    `xml:"bom-ref,attr,omitempty"`
 	Type               string                    `xml:"type,attr"`
