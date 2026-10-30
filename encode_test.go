@@ -3,6 +3,8 @@ package sbom
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -297,4 +299,136 @@ func formatName(f Format) string {
 		return "spdx-json"
 	}
 	return "unknown"
+}
+
+func TestEncodeCycloneDXXMLLicensesBeforePURL(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Encode(&buf, sampleSBOM(), FormatCycloneDXXML); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	got := xmlChildNames(t, buf.Bytes(), func(start xml.StartElement) bool {
+		return start.Name.Local == "component" && xmlAttr(start, "bom-ref") == "pkg:npm/lodash@4.17.21"
+	})
+	want := []string{"name", "version", "licenses", "purl", "properties"}
+	if !slices.Equal(got, want) {
+		t.Errorf("component elements = %v, want %v\n%s", got, want, buf.String())
+	}
+}
+
+func TestCycloneDXXMLComponentElementOrder(t *testing.T) {
+	component := cdxComponentToXML(&cdxComponent{
+		BOMRef: "alpha", Type: "library", Name: "alpha", Version: "1.0.0",
+		Description: "Alpha", Copyright: "Copyright Acme", Author: "Jane Doe",
+		PURL: "pkg:npm/alpha@1.0.0", Supplier: &cdxOrgEntity{Name: "Acme"},
+		Hashes:             []cdxHash{{Alg: "SHA-256", Content: "abc"}},
+		Licenses:           []cdxLicense{{Expression: "MIT"}},
+		Pedigree:           &cdxPedigree{Ancestors: []cdxComponent{{Type: "library", Name: "upstream"}}},
+		ExternalReferences: []cdxExtRef{{Type: "website", URL: "https://example.com"}},
+		Properties:         []cdxProperty{{Name: "scope", Value: "runtime"}},
+		Components:         []cdxComponent{{Type: "library", Name: "child"}},
+	})
+	data, err := xml.Marshal(component)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	got := xmlChildNames(t, data, func(xml.StartElement) bool { return true })
+	// The supported subset of the CycloneDX 1.5 XSD component sequence.
+	want := []string{
+		"supplier", "author", "name", "version", "description", "hashes", "licenses",
+		"copyright", "purl", "pedigree", "externalReferences", "properties", "components",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("component elements = %v, want %v\n%s", got, want, data)
+	}
+}
+
+func TestCycloneDXXMLMetadataElementOrder(t *testing.T) {
+	data, err := xml.Marshal(cdxMetadataXML{
+		Timestamp:   "2026-01-01T00:00:00Z",
+		Tools:       &cdxToolsXML{Tools: []cdxTool{{Vendor: "Tool", Name: "test"}}},
+		Component:   &cdxComponentXML{Type: "application", Name: "demo"},
+		Manufacture: &cdxOrgEntity{Name: "Maker"},
+		Supplier:    &cdxOrgEntity{Name: "Acme"},
+	})
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	got := xmlChildNames(t, data, func(xml.StartElement) bool { return true })
+	want := []string{"timestamp", "tools", "component", "manufacture", "supplier"}
+	if !slices.Equal(got, want) {
+		t.Errorf("metadata elements = %v, want %v\n%s", got, want, data)
+	}
+}
+
+func TestParseCycloneDXXMLPreviousElementOrder(t *testing.T) {
+	// Element order emitted by earlier versions of this encoder.
+	doc, err := Parse([]byte(`<bom xmlns="http://cyclonedx.org/schema/bom/1.5" version="1">
+  <components>
+    <component type="library" bom-ref="alpha">
+      <name>alpha</name>
+      <version>1.0.0</version>
+      <copyright>Copyright Acme</copyright>
+      <author>Jane Doe</author>
+      <purl>pkg:npm/alpha@1.0.0</purl>
+      <supplier><name>Acme</name></supplier>
+      <hashes><hash alg="SHA-256">abc</hash></hashes>
+      <licenses><license><id>MIT</id></license></licenses>
+    </component>
+  </components>
+</bom>`))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(doc.Packages) != 1 {
+		t.Fatalf("Packages = %d, want 1", len(doc.Packages))
+	}
+	p := doc.Packages[0]
+	if p.Copyright != "Copyright Acme" || p.Originator != "Jane Doe" || p.Supplier != "Acme" ||
+		p.PURL() != "pkg:npm/alpha@1.0.0" || p.LicenseDeclared != "MIT" ||
+		!slices.Equal(p.Checksums, []Checksum{{Algorithm: "SHA256", Value: "abc"}}) {
+		t.Errorf("package = %#v", p)
+	}
+}
+
+// xmlChildNames returns the local names of the direct children of the first
+// element matched by match.
+func xmlChildNames(t *testing.T, data []byte, match func(xml.StartElement) bool) []string {
+	t.Helper()
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	var names []string
+	depth, matchedDepth := 0, 0
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("decoding XML: %v\n%s", err, data)
+		}
+		switch token := token.(type) {
+		case xml.StartElement:
+			depth++
+			if matchedDepth == 0 && match(token) {
+				matchedDepth = depth
+			} else if matchedDepth != 0 && depth == matchedDepth+1 {
+				names = append(names, token.Name.Local)
+			}
+		case xml.EndElement:
+			if depth == matchedDepth {
+				return names
+			}
+			depth--
+		}
+	}
+	t.Fatalf("no matching element in:\n%s", data)
+	return nil
+}
+
+func xmlAttr(start xml.StartElement, name string) string {
+	for _, attr := range start.Attr {
+		if attr.Name.Local == name {
+			return attr.Value
+		}
+	}
+	return ""
 }
