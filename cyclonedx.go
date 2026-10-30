@@ -33,12 +33,13 @@ type cdxBOMXML struct {
 	Dependencies *cdxDependenciesXML `xml:"dependencies,omitempty"`
 }
 
+// Element order follows the CycloneDX XSD metadata sequence.
 type cdxMetadataXML struct {
 	Timestamp   string           `xml:"timestamp,omitempty"`
 	Tools       *cdxToolsXML     `xml:"tools,omitempty"`
 	Component   *cdxComponentXML `xml:"component,omitempty"`
-	Supplier    *cdxOrgEntity    `xml:"supplier,omitempty"`
 	Manufacture *cdxOrgEntity    `xml:"manufacture,omitempty"`
+	Supplier    *cdxOrgEntity    `xml:"supplier,omitempty"`
 }
 
 type cdxToolsXML struct {
@@ -53,18 +54,20 @@ type cdxDependenciesXML struct {
 	Dependencies []cdxDependency `xml:"dependency"`
 }
 
+// Element order follows the CycloneDX XSD component sequence, which the
+// encoder must preserve. Decoding does not depend on element order.
 type cdxComponentXML struct {
 	BOMRef             string                    `xml:"bom-ref,attr,omitempty"`
 	Type               string                    `xml:"type,attr"`
+	Supplier           *cdxOrgEntity             `xml:"supplier,omitempty"`
+	Author             string                    `xml:"author,omitempty"`
 	Name               string                    `xml:"name"`
 	Version            string                    `xml:"version,omitempty"`
 	Description        string                    `xml:"description,omitempty"`
-	Copyright          string                    `xml:"copyright,omitempty"`
-	Author             string                    `xml:"author,omitempty"`
-	PURL               string                    `xml:"purl,omitempty"`
-	Supplier           *cdxOrgEntity             `xml:"supplier,omitempty"`
 	Hashes             *cdxHashesXML             `xml:"hashes,omitempty"`
 	Licenses           *cdxLicensesXML           `xml:"licenses,omitempty"`
+	Copyright          string                    `xml:"copyright,omitempty"`
+	PURL               string                    `xml:"purl,omitempty"`
 	Pedigree           *cdxPedigreeXML           `xml:"pedigree,omitempty"`
 	ExternalReferences *cdxExternalReferencesXML `xml:"externalReferences,omitempty"`
 	Properties         *cdxPropertiesXML         `xml:"properties,omitempty"`
